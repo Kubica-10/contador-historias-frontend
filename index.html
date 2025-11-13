@@ -70,9 +70,9 @@
 
     <script>
         // --- Endpoints da API ---
-        // ATENÇÃO: Substitua pela URL do seu backend no Render
-        const API_URL_STORY = "const API_URL_STORY = "https://contador-historias-api.onrender.com/gerar_historia";
-        const API_URL_AUDIO = "const API_URL_AUDIO = "https://contador-historias-api.onrender.com/gerar_audio";
+        // ATENÇÃO: As linhas abaixo foram CORRIGIDAS
+        const API_URL_STORY = "https://contador-historias-api.onrender.com/gerar_historia";
+        const API_URL_AUDIO = "https://contador-historias-api.onrender.com/gerar_audio";
 
         // --- Elementos do DOM ---
         const themeInput = document.getElementById('story-theme');
@@ -110,20 +110,20 @@
             const dataView = new DataView(new ArrayBuffer(44));
             const pcmView = new Int16Array(pcmData);
 
-            // RIFF
+            // Cabeçalho RIFF
             dataView.setUint32(0, 0x52494646, false); // "RIFF"
             dataView.setUint32(4, 36 + pcmView.byteLength, true);
             dataView.setUint32(8, 0x57415645, false); // "WAVE"
-            // fmt
+            // Chunk "fmt "
             dataView.setUint32(12, 0x666d7420, false); // "fmt "
-            dataView.setUint32(16, 16, true); // Sub-chunk 1 size (16 for PCM)
-            dataView.setUint16(20, 1, true); // Audio format (1 for PCM)
+            dataView.setUint32(16, 16, true); // Tamanho (16 para PCM)
+            dataView.setUint16(20, 1, true); // Formato (1 para PCM)
             dataView.setUint16(22, numChannels, true);
             dataView.setUint32(24, sampleRate, true);
-            dataView.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true); // Byte rate
-            dataView.setUint16(32, numChannels * (bitsPerSample / 8), true); // Block align
+            dataView.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true); // ByteRate
+            dataView.setUint16(32, numChannels * (bitsPerSample / 8), true); // BlockAlign
             dataView.setUint16(34, bitsPerSample, true);
-            // data
+            // Chunk "data"
             dataView.setUint32(36, 0x64617461, false); // "data"
             dataView.setUint32(40, pcmView.byteLength, true);
 
@@ -141,12 +141,10 @@
             }
             const sampleRate = parseInt(rateMatch[1], 10);
             
-            // Converte o PCM Base64 para um WAV Blob
             const pcmBuffer = base64ToArrayBuffer(audioData);
             const wavBlob = pcmToWav(pcmBuffer, sampleRate);
             const audioUrl = URL.createObjectURL(wavBlob);
 
-            // Para o áudio anterior, se estiver tocando
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio.onended = null;
@@ -155,7 +153,6 @@
             currentAudio = new Audio(audioUrl);
             currentAudio.play();
             
-            // Atualiza ícones
             iconAudioLoading.classList.add('hidden');
             iconPlay.classList.add('hidden');
             iconPause.classList.remove('hidden');
@@ -185,8 +182,12 @@
             storyTextElement.textContent = "";
             currentStoryText = "";
             playButton.classList.add('hidden');
+            iconPlay.classList.remove('hidden'); // Garante que o ícone de Play esteja visível no reset
+            iconPause.classList.add('hidden');
+            iconAudioLoading.classList.add('hidden');
             if (currentAudio) {
                 currentAudio.pause();
+                currentAudio = null; // Limpa o áudio anterior
             }
         }
 
@@ -203,6 +204,11 @@
             resultContainer.classList.remove('hidden');
 
             try {
+                // VERIFICA SE AS URLs FORAM SUBSTITUÍDAS
+                if (API_URL_STORY.includes("const API_URL_STORY")) { // Checagem de segurança
+                    throw new Error("A URL da API no index.html ainda não foi configurada corretamente!");
+                }
+            
                 const response = await fetch(API_URL_STORY, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -217,7 +223,7 @@
                 const data = await response.json();
                 currentStoryText = data.story_text;
                 storyTextElement.textContent = currentStoryText;
-                playButton.classList.remove('hidden'); // Mostra o botão de play
+                playButton.classList.remove('hidden'); 
 
             } catch (error) {
                 console.error("Erro em handleGenerateStory:", error);
