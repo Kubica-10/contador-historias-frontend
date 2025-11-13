@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contador de Histórias AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ### NOVO: Biblioteca para Salvar PDF ### -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -19,19 +21,40 @@
         </header>
 
         <!-- Área de Input -->
-        <div class="flex flex-col sm:flex-row gap-3 mb-6">
-            <input 
-                type="text" 
-                id="story-theme" 
-                placeholder="Ex: um coelho que queria voar..."
-                class="flex-1 border border-gray-300 rounded-lg py-3 px-5 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-            >
-            <button 
-                id="generate-button" 
-                class="bg-blue-600 text-white rounded-lg px-8 py-3 text-lg font-semibold shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition transform hover:scale-105 active:scale-95 disabled:bg-gray-400"
-            >
-                Criar História
-            </button>
+        <div class="mb-6">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <input 
+                    type="text" 
+                    id="story-theme" 
+                    placeholder="Ex: um coelho que queria voar..."
+                    class="flex-1 border border-gray-300 rounded-lg py-3 px-5 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                <button 
+                    id="generate-button" 
+                    class="bg-blue-600 text-white rounded-lg px-8 py-3 text-lg font-semibold shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition transform hover:scale-105 active:scale-95 disabled:bg-gray-400"
+                >
+                    Criar História
+                </button>
+            </div>
+            
+            <!-- ### NOVOS BOTÕES DE AÇÃO ### -->
+            <div id="action-buttons" class="flex flex-wrap gap-3 mt-4 justify-center hidden">
+                <!-- Botão Limpar -->
+                <button id="clear-button" class="flex items-center gap-2 bg-gray-200 text-gray-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-300 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.578 0a48.108 48.108 0 013.478-.397m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                    Limpar
+                </button>
+                <!-- Botão Salvar PDF -->
+                <button id="save-pdf-button" class="flex items-center gap-2 bg-green-100 text-green-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-green-200 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    Salvar PDF
+                </button>
+                <!-- Botão Salvar Áudio (começa escondido) -->
+                <button id="save-audio-button" class="flex items-center gap-2 bg-purple-100 text-purple-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-purple-200 transition hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
+                    Salvar Áudio (.wav)
+                </button>
+            </div>
         </div>
 
         <!-- Área de Resultado -->
@@ -70,7 +93,7 @@
 
     <script>
         // --- Endpoints da API ---
-        // ATENÇÃO: As linhas abaixo foram CORRIGIDAS
+        // ATENÇÃO: Substitua pela URL do seu backend no Render
         const API_URL_STORY = "https://contador-historias-api.onrender.com/gerar_historia";
         const API_URL_AUDIO = "https://contador-historias-api.onrender.com/gerar_audio";
 
@@ -89,12 +112,18 @@
         const iconPause = document.getElementById('icon-pause');
         const iconAudioLoading = document.getElementById('icon-audio-loading');
         
+        // --- NOVOS Botões de Ação ---
+        const actionButtonsContainer = document.getElementById('action-buttons');
+        const clearButton = document.getElementById('clear-button');
+        const savePdfButton = document.getElementById('save-pdf-button');
+        const saveAudioButton = document.getElementById('save-audio-button');
+
         let currentAudio = null; // Armazena o objeto de áudio
         let currentStoryText = ""; // Armazena o texto da história atual
+        let currentWavBlob = null; // ### NOVO: Armazena o Blob de Áudio para download
 
         // --- Funções Auxiliares de Áudio ---
 
-        // 1. Converte Base64 para ArrayBuffer
         function base64ToArrayBuffer(base64) {
             const binaryString = window.atob(base64);
             const len = binaryString.length;
@@ -105,34 +134,26 @@
             return bytes.buffer;
         }
 
-        // 2. Converte Áudio PCM (da Gemini) para um Blob WAV (que o navegador toca)
         function pcmToWav(pcmData, sampleRate, numChannels = 1, bitsPerSample = 16) {
             const dataView = new DataView(new ArrayBuffer(44));
             const pcmView = new Int16Array(pcmData);
-
-            // Cabeçalho RIFF
             dataView.setUint32(0, 0x52494646, false); // "RIFF"
             dataView.setUint32(4, 36 + pcmView.byteLength, true);
             dataView.setUint32(8, 0x57415645, false); // "WAVE"
-            // Chunk "fmt "
             dataView.setUint32(12, 0x666d7420, false); // "fmt "
-            dataView.setUint32(16, 16, true); // Tamanho (16 para PCM)
-            dataView.setUint16(20, 1, true); // Formato (1 para PCM)
+            dataView.setUint32(16, 16, true);
+            dataView.setUint16(20, 1, true);
             dataView.setUint16(22, numChannels, true);
             dataView.setUint32(24, sampleRate, true);
-            dataView.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true); // ByteRate
-            dataView.setUint16(32, numChannels * (bitsPerSample / 8), true); // BlockAlign
+            dataView.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
+            dataView.setUint16(32, numChannels * (bitsPerSample / 8), true);
             dataView.setUint16(34, bitsPerSample, true);
-            // Chunk "data"
             dataView.setUint32(36, 0x64617461, false); // "data"
             dataView.setUint32(40, pcmView.byteLength, true);
-
             return new Blob([dataView, pcmView], { type: 'audio/wav' });
         }
         
-        // 3. Toca o Áudio
         function playAudio(audioData, mimeType) {
-            // Extrai o sampleRate do mimeType (ex: "audio/L16; rate=24000")
             const rateMatch = mimeType.match(/rate=(\d+)/);
             if (!rateMatch) {
                 console.error("MimeType não especificou a 'rate'", mimeType);
@@ -143,6 +164,10 @@
             
             const pcmBuffer = base64ToArrayBuffer(audioData);
             const wavBlob = pcmToWav(pcmBuffer, sampleRate);
+            
+            // ### NOVO: Armazena o Blob para download ###
+            currentWavBlob = wavBlob; 
+            
             const audioUrl = URL.createObjectURL(wavBlob);
 
             if (currentAudio) {
@@ -156,6 +181,7 @@
             iconAudioLoading.classList.add('hidden');
             iconPlay.classList.add('hidden');
             iconPause.classList.remove('hidden');
+            saveAudioButton.classList.remove('hidden'); // Mostra o botão de salvar áudio
             
             currentAudio.onended = () => {
                 iconPlay.classList.remove('hidden');
@@ -180,18 +206,23 @@
             errorMessage.classList.add('hidden');
             resultContainer.classList.add('hidden');
             storyTextElement.textContent = "";
+            themeInput.value = ""; // Limpa o input
             currentStoryText = "";
+            currentWavBlob = null; // Limpa o blob
+            
             playButton.classList.add('hidden');
-            iconPlay.classList.remove('hidden'); // Garante que o ícone de Play esteja visível no reset
+            actionButtonsContainer.classList.add('hidden'); // Esconde todos os botões de ação
+            saveAudioButton.classList.add('hidden');
+            
+            iconPlay.classList.remove('hidden');
             iconPause.classList.add('hidden');
             iconAudioLoading.classList.add('hidden');
             if (currentAudio) {
                 currentAudio.pause();
-                currentAudio = null; // Limpa o áudio anterior
+                currentAudio = null; 
             }
         }
 
-        // 1. GERAR HISTÓRIA (Texto)
         async function handleGenerateStory() {
             const query = themeInput.value.trim();
             if (!query) {
@@ -204,9 +235,8 @@
             resultContainer.classList.remove('hidden');
 
             try {
-                // VERIFICA SE AS URLs FORAM SUBSTITUÍDAS
-                if (API_URL_STORY.includes("const API_URL_STORY")) { // Checagem de segurança
-                    throw new Error("A URL da API no index.html ainda não foi configurada corretamente!");
+                if (API_URL_STORY.includes("COLE_A_URL_DO_SEU_BACKEND_AQUI")) {
+                    throw new Error("A URL da API no index.html ainda não foi configurada!");
                 }
             
                 const response = await fetch(API_URL_STORY, {
@@ -223,7 +253,10 @@
                 const data = await response.json();
                 currentStoryText = data.story_text;
                 storyTextElement.textContent = currentStoryText;
-                playButton.classList.remove('hidden'); 
+                
+                playButton.classList.remove('hidden'); // Mostra o botão de play
+                actionButtonsContainer.classList.remove('hidden'); // Mostra os botões (Limpar, PDF)
+                saveAudioButton.classList.add('hidden'); // Garante que o de áudio só aparece dps
 
             } catch (error) {
                 console.error("Erro em handleGenerateStory:", error);
@@ -234,18 +267,15 @@
             }
         }
 
-        // 2. GERAR ÁUDIO (Voz)
         async function handlePlayAudio() {
             if (!currentStoryText) return;
             
-            // Se o áudio já estiver tocando, pausa
             if (currentAudio && !currentAudio.paused) {
                 currentAudio.pause();
                 iconPlay.classList.remove('hidden');
                 iconPause.classList.add('hidden');
                 return;
             }
-            // Se estiver pausado, continua
             if (currentAudio && currentAudio.paused) {
                 currentAudio.play();
                 iconPlay.classList.add('hidden');
@@ -253,11 +283,10 @@
                 return;
             }
 
-            // Se for a primeira vez, busca o áudio
             playButton.disabled = true;
             iconPlay.classList.add('hidden');
             iconAudioLoading.classList.remove('hidden');
-            showError(''); // Limpa erros antigos
+            showError(''); 
 
             try {
                 const response = await fetch(API_URL_AUDIO, {
@@ -284,12 +313,64 @@
             }
         }
 
+        // --- NOVAS FUNÇÕES DOS BOTÕES ---
+
+        function handleClearChat() {
+            resetState();
+        }
+
+        function handleSavePDF() {
+            if (!currentStoryText) return;
+            
+            // Pega o tema para o nome do arquivo
+            const theme = themeInput.value.trim() || "historia";
+            const filename = `${theme.substring(0, 20)}.pdf`;
+            
+            // Cria um elemento HTML limpo para o PDF
+            const element = document.createElement('div');
+            element.style.padding = '20px';
+            element.style.fontSize = '16px';
+            element.style.lineHeight = '1.6';
+            element.innerHTML = `<h1>${theme}</h1><br><p>${currentStoryText.replace(/\n/g, '<br>')}</p>`;
+
+            html2pdf().from(element).set({
+                margin: 1,
+                filename: filename,
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            }).save();
+        }
+
+        function handleSaveAudio() {
+            if (!currentWavBlob) {
+                showError("Áudio ainda não foi gerado. Clique em 'Ouvir' primeiro.");
+                return;
+            }
+            
+            const theme = themeInput.value.trim() || "historia";
+            const filename = `${theme.substring(0, 20)}.wav`; // Salva como .wav
+
+            const url = URL.createObjectURL(currentWavBlob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
         // --- Event Listeners ---
         generateButton.addEventListener('click', handleGenerateStory);
         themeInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleGenerateStory();
         });
         playButton.addEventListener('click', handlePlayAudio);
+        
+        // --- NOVOS Listeners ---
+        clearButton.addEventListener('click', handleClearChat);
+        savePdfButton.addEventListener('click', handleSavePDF);
+        saveAudioButton.addEventListener('click', handleSaveAudio);
 
     </script>
 </body>
